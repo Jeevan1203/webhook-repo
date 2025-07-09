@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GitHub Events Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    :root {
+  --bg: #f2f4f8;          /* Background color */
+  --text: #222;           /* Main text color */
+  --card: #fff;           /* Card background */
+  --border: #007bff;      /* Accent border */
+  --secondary: #666;      /* Secondary text */
+}
+
+body.dark {
+  --bg: #121212;          /* Dark mode background */
+  --text: #e0e0e0;        /* Dark text */
+  --card: #1e1e1e;        /* Dark card */
+  --border: #4dabf7;      /* Dark border */
+  --secondary: #aaa;      /* Dark secondary */
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 2rem;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+h1 {
+  text-align: center;
+}
+
+.controls {
+  text-align: center;
+  margin: 1rem auto 2rem;
+}
+
+.controls button {
+  margin: 0 0.3rem;
+  padding: 8px 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  background: var(--border);
+  color: white;
+}
+
+.toggle, .download-btn {
+  position: fixed;
+  top: 1.2rem;
+  right: 2rem;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.download-btn {
+  right: 140px;
+}
+
+.summary {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  color: var(--secondary);
+}
+
+#events {
+  max-width: 800px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.event-card {
+  background: var(--card);
+  border-left: 6px solid var(--border);
+  padding: 1rem 1.3rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.event-card:hover {
+  transform: scale(1.01);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.event-type {
+  font-weight: bold;
+  color: var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+}
+
+.event-msg {
+  margin-top: 0.3rem;
+}
+
+.event-time {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  color: var(--secondary);
+}
+
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease, transform 0.3s ease;
+  z-index: 999;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+
+
+
+
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  body {
+    padding: 1rem;
+  }
+
+  .controls button {
+    padding: 6px 12px;
+  }
+
+  #events {
+    flex-direction: column;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <button class="toggle" onclick="toggleTheme()">🌗 Toggle Theme</button>
+  <button class="download-btn" onclick="downloadEvents()">⬇️ Download</button>
+
+  <h1>🚀 GitHub Events Dashboard</h1>
+
+ 
+
+  <div class="summary" id="summaryStats">📈 Loading...</div>
+
+  <div class="controls">
+    <button onclick="setFilter('ALL')">All</button>
+    <button onclick="setFilter('PUSH')"><i class="fas fa-upload"></i> Push</button>
+    <button onclick="setFilter('PULL_REQUEST')"><i class="fas fa-code-branch"></i> PR</button>
+    <button onclick="setFilter('MERGE')"><i class="fas fa-check-circle"></i> Merge</button>
+
+  </div>
+
+  <div id="events"></div>
+  <div id="toast"> Event updated</div>
+
+  <script>
+    let currentFilter = "ALL";
+    let lastEventCount = 0;
+
+    const fetchEvents = async () => {
+      const res = await fetch("/events");
+      const data = await res.json();
+      const container = document.getElementById("events");
+      const summary = document.getElementById("summaryStats");
+
+      const pushCount = data.filter(e => e.type === "PUSH").length;
+      const prCount = data.filter(e => e.type === "PULL_REQUEST").length;
+      const mergeCount = data.filter(e => e.type === "MERGE").length;
+
+      summary.innerHTML = `Total Events: ${data.length} | Push: ${pushCount} | Pull Requests: ${prCount} | Merges: ${mergeCount}`;
+
+
+      if (data.length > lastEventCount) {
+        function showToast(message = "✅ Event received!") {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2500);
+}
+      }
+
+      lastEventCount = data.length;
+      container.innerHTML = "";
+
+      data.filter(e => currentFilter === "ALL" || e.type === currentFilter)
+        .forEach(e => {
+          let icon = "", title = "", msg = "";
+          const type = e.type || e.event || "UNKNOWN";
+          switch (e.type) {
+  case "PUSH":
+    icon = `<i class="fas fa-upload"></i>`;
+    title = "Push";
+    msg = `<strong>${e.user}</strong> pushed to <strong>${e.branch}</strong>`;
+    break;
+
+  case "PULL_REQUEST":
+    icon = `<i class="fas fa-code-branch"></i>`;
+    title = "Pull Request";
+    msg = `<strong>${e.user}</strong> opened a PR from <strong>${e.source_branch}</strong> to <strong>${e.target_branch}</strong>`;
+    break;
+
+  case "MERGE":
+    icon = `<i class="fas fa-check-circle"></i>`;
+    title = "Merge";
+    msg = `<strong>${e.user}</strong> merged <strong>${e.source_branch}</strong> into <strong>${e.target_branch}</strong>`;
+    break;
+
+  default:
+    icon = `<i class="fas fa-question-circle"></i>`;
+    title = "Unknown";
+    msg = "Unknown event type.";
+}
+
+
+          const card = document.createElement("div");
+          card.className = "event-card";
+          card.innerHTML = `
+            <div class="event-type">${icon} ${title}</div>
+            <div class="event-msg">${msg}</div>
+            <div class="event-time">${e.timestamp}</div>
+          `;
+          container.appendChild(card);
+        });
+    };
+
+    const toggleTheme = () => {
+      document.body.classList.toggle("dark");
+      localStorage.setItem("theme", document.body.classList.contains("dark") ? "dark" : "light");
+    };
+
+    const setFilter = (type) => {
+      currentFilter = type;
+      fetchEvents();
+    };
+
+    const showToast = (text) => {
+      const toast = document.getElementById("toast");
+      toast.innerText = text;
+      toast.style.display = "block";
+      setTimeout(() => toast.style.display = "none", 2000);
+    };
+
+ 
+    const downloadEvents = async () => {
+      const res = await fetch("/events");
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "github-events.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    if (localStorage.getItem("theme") === "dark") {
+      document.body.classList.add("dark");
+    }
+
+    fetchEvents();
+    setInterval(fetchEvents, 15000);
+  </script>
+</body>
+</html>
