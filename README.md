@@ -24,7 +24,8 @@ A real-time dashboard that captures and displays GitHub repository events (Push,
 ## 🖼️ Preview
 
 
-[image](./Screenshot 2025-07-09 204702.png)
+![Dashboard Screenshot](./Screenshot%202025-07-09%20204702.png)
+
 
 
 ---
